@@ -10,6 +10,7 @@ import (
 	"minimal-service/internal/auth"
 	"minimal-service/internal/config"
 	"minimal-service/internal/handler"
+	"minimal-service/internal/messaging"
 	"minimal-service/internal/prometheus"
 	"minimal-service/internal/repository"
 
@@ -24,13 +25,22 @@ func NewServer(cfg config.Config) http.Handler {
 	passwordHasher := auth.NewBcryptHasher()
 	jwtManager := auth.NewJWTManager(cfg.JWTSecret, "myproject", "myproject-api")
 
-	userHandler := handler.NewUserHandler(userRepo, passwordHasher, jwtManager)
+	broker, err := messaging.InitBroker(cfg)
+	if err != nil {
+		log.Fatalf("init broker: %v", err)
+	}
+	if broker != nil {
+		go broker.Run()
+	}
+
+	userHandler := handler.NewUserHandler(userRepo, passwordHasher, jwtManager, broker, cfg.ConfirmBaseURL)
 
 	mux := http.NewServeMux()
 
 	// public endpoints
 	mux.HandleFunc("/health", handler.HealthHandler)
 	mux.HandleFunc("/register", userHandler.Register)
+	mux.HandleFunc("/confirm", userHandler.Confirm)
 	mux.HandleFunc("/login", userHandler.Login)
 	mux.HandleFunc("/validate", userHandler.Validate)
 	mux.HandleFunc("/metrics", promhttp.Handler().ServeHTTP)

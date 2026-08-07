@@ -30,6 +30,14 @@ services:
       DB_MAX_RETRIES: 10
       DB_RETRY_INTERVAL: 5
       APP_PORT: ":8000"
+      BROKER_TYPE: "RABBITMQ"
+      RABBIT_HOST: rabbitmq
+      RABBIT_PORT: ${RABBIT_PORT:-5672}
+      RABBIT_USERNAME: ${RABBIT_USERNAME:-billing}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD:-billing}
+      RABBIT_AUTH_PRODUCE_EXCHANGE: "auth"
+      RABBIT_AUTH_PRODUCE_RK: "user.created"
+      CONFIRM_BASE_URL: "http://localhost:8000"
     ports:
       - "8000:8000"
     depends_on:

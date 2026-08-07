@@ -1,12 +1,19 @@
 package handler
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
+
 	"minimal-service/internal/auth"
+	"minimal-service/internal/messaging"
 	"minimal-service/internal/model"
 	"minimal-service/internal/repository"
 	"minimal-service/pkg/response"
@@ -20,6 +27,8 @@ type UserHandler struct {
 	repo           *repository.UserRepository
 	passwordHasher auth.PasswordHasher
 	jwtManager     *auth.JWTManager
+	broker         messaging.Broker
+	confirmBaseURL string
 }
 
 // NewUserHandler creates a new user handler.
@@ -27,11 +36,15 @@ func NewUserHandler(
 	repo *repository.UserRepository,
 	hasher auth.PasswordHasher,
 	jwtManager *auth.JWTManager,
+	broker messaging.Broker,
+	confirmBaseURL string,
 ) *UserHandler {
 	return &UserHandler{
 		repo:           repo,
 		passwordHasher: hasher,
 		jwtManager:     jwtManager,
+		broker:         broker,
+		confirmBaseURL: confirmBaseURL,
 	}
 }
 
@@ -58,11 +71,18 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	plainToken, hashedToken, err := generateConfirmationToken()
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to generate confirmation token")
+		return
+	}
 	u := &model.User{
-		Username:     dto.Username,
-		PasswordHash: hash,
-		Email:        dto.Email,
-		Phone:        dto.Phone,
+		Username:          dto.Username,
+		PasswordHash:      hash,
+		Email:             dto.Email,
+		Phone:             dto.Phone,
+		Status:            model.UserStatusConfirmPending,
+		ConfirmationToken: &hashedToken,
 	}
 	if err := h.repo.Create(u); err != nil {
 		if errors.Is(err, repository.ErrAlreadyExists) {
@@ -73,7 +93,80 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	confirmationLink := h.generateConfirmationLink(plainToken)
+	event := model.UserCreatedEvent{
+		EventId:          uuid.New(),
+		EventType:        "user.created",
+		NotificationType: "email",
+		Message:          confirmationLink,
+		Version:          "1.0",
+		Email:            u.Email,
+		Payload:          "",
+	}
+	if err := h.broker.ReportUserCreated(event); err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to publish user created event")
+		return
+	}
+
 	response.JSON(w, http.StatusCreated, toProfileDTO(u))
+}
+
+func (h *UserHandler) generateConfirmationLink(token string) string {
+	return fmt.Sprintf("%s/confirm?token=%s", h.confirmBaseURL, token)
+}
+
+// generateConfirmationToken generates a cryptographically secure random token
+// and returns both the plain token (to be sent to the user) and its SHA-256 hash (to be stored).
+func generateConfirmationToken() (plain string, hashed string, err error) {
+	b := make([]byte, 32)
+	if _, err = rand.Read(b); err != nil {
+		return "", "", fmt.Errorf("generate random token: %w", err)
+	}
+	plain = hex.EncodeToString(b)
+	hashed = hashConfirmationToken(plain)
+	return plain, hashed, nil
+}
+
+func hashConfirmationToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
+
+// Confirm handles GET /confirm?token=... and activates the user account.
+func (h *UserHandler) Confirm(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	plainToken := r.URL.Query().Get("token")
+	if plainToken == "" {
+		response.Error(w, http.StatusBadRequest, "missing token")
+		return
+	}
+
+	hashedToken := hashConfirmationToken(plainToken)
+	u, err := h.repo.GetByConfirmationToken(hashedToken)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			response.Error(w, http.StatusNotFound, "invalid or expired token")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "failed to fetch user")
+		return
+	}
+
+	if u.Status != model.UserStatusConfirmPending {
+		response.Error(w, http.StatusConflict, "user already confirmed")
+		return
+	}
+
+	if err := h.repo.ConfirmUser(u.ID); err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to confirm user")
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]any{"status": "confirmed"})
 }
 
 // Login handles POST /login. Returns a JWT for the given username/password.
