@@ -1,0 +1,99 @@
+package repository
+
+import (
+	"database/sql"
+	"errors"
+	"strings"
+
+	"minimal-service/internal/model"
+)
+
+// ErrNotFound is returned when a user does not exist.
+var ErrNotFound = errors.New("user not found")
+
+// ErrAlreadyExists is returned when a unique constraint is violated (e.g. username taken).
+var ErrAlreadyExists = errors.New("user already exists")
+
+// UserRepository abstracts database operations on users.
+type UserRepository struct {
+	db *sql.DB
+}
+
+// NewUserRepository creates a new repository backed by the given connection.
+func NewUserRepository(db *sql.DB) *UserRepository {
+	return &UserRepository{db: db}
+}
+
+// Create inserts a new user and writes the assigned id back into u.
+func (r *UserRepository) Create(u *model.User) error {
+	err := r.db.QueryRow(
+		`INSERT INTO users (username, password_hash, email, phone)
+		 VALUES ($1, $2, $3, $4) RETURNING id`,
+		u.Username, u.PasswordHash, u.Email, u.Phone,
+	).Scan(&u.ID)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return ErrAlreadyExists
+		}
+		return err
+	}
+	return nil
+}
+
+// GetByID returns a user by ID.
+func (r *UserRepository) GetByID(id int) (*model.User, error) {
+	var u model.User
+	err := r.db.QueryRow(
+		`SELECT id, username, password_hash, email, phone
+		 FROM users WHERE id = $1`, id,
+	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Email, &u.Phone)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return &u, err
+}
+
+// GetByUsername returns a user by username (used during login).
+func (r *UserRepository) GetByUsername(username string) (*model.User, error) {
+	var u model.User
+	err := r.db.QueryRow(
+		`SELECT id, username, password_hash, email, phone
+		 FROM users WHERE username = $1`, username,
+	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Email, &u.Phone)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return &u, err
+}
+
+// UpdateProfile modifies the editable profile fields of an existing user.
+// Returns ErrNotFound if no rows were affected.
+func (r *UserRepository) UpdateProfile(id int, p *model.UpdateProfileDTO) error {
+	res, err := r.db.Exec(
+		`UPDATE users
+		 SET email=$1, phone=$2
+		 WHERE id=$3`,
+		p.Email, p.Phone, id,
+	)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// isUniqueViolation tries to detect a Postgres unique_violation (SQLSTATE 23505)
+// without depending on a specific driver error type.
+func isUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "duplicate key") || strings.Contains(msg, "23505")
+}
