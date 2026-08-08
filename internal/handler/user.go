@@ -197,6 +197,11 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if u.Status != model.UserStatusActive {
+		response.Error(w, http.StatusForbidden, "account not activated")
+		return
+	}
+
 	token, err := h.jwtManager.GenerateToken(strconv.Itoa(u.ID), tokenTTL)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "failed to issue token")

@@ -1,5 +1,5 @@
 services:
-  postgres:
+  postgres-auth:
     image: postgres:16-alpine
     container_name: users-postgres
     environment:
@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: usersdb
     ports:
-      - "5433:5432"
+      - "5436:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -16,12 +16,14 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - shared-network
 
   app:
     build: .
     container_name: users-service
     environment:
-      DB_HOST: postgres
+      DB_HOST: postgres-auth
       DB_PORT: 5432
       DB_NAME: usersdb
       DB_USER: postgres
@@ -41,13 +43,22 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      postgres:
+      postgres-auth:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8000/health"]
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - shared-network
 
 volumes:
   postgres_data:
+
+# docker network create shared-network
+
+networks:
+  shared-network:
+    external: true
+    name: shared-network
