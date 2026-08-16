@@ -10,5 +10,6 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
+CREATE INDEX idx_token ON users USING hash (confirmation_token);

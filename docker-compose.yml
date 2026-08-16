@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: usersdb
     ports:
-      - "5436:5432"
+      - "5430:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -32,7 +32,15 @@ services:
       DB_MAX_RETRIES: 10
       DB_RETRY_INTERVAL: 5
       APP_PORT: ":8000"
-      BROKER_TYPE: "RABBITMQ"
+      # RABBITMQ | KAFKA — переключение реализации брокера
+      BROKER_TYPE: ${BROKER_TYPE:-KAFKA}
+
+      # --- Kafka (общий кластер в shared-network, поднимается из advert-cmd-svc) ---
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
+      KAFKA_AUTH_TOPIC: "auth"
+      KAFKA_USER_CREATED_EVENT_TYPE: "user.created"
+
+      # --- RabbitMQ (legacy, используется при BROKER_TYPE=RABBITMQ) ---
       RABBIT_HOST: rabbitmq
       RABBIT_PORT: ${RABBIT_PORT:-5672}
       RABBIT_USERNAME: ${RABBIT_USERNAME:-billing}

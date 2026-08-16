@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"minimal-service/pkg/response"
+	"auth-service/pkg/response"
 )
 
 // HealthHandler responds with {"status": "OK"}.

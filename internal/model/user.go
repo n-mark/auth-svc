@@ -52,9 +52,9 @@ type UpdateProfileDTO struct {
 }
 
 type UserCreatedEvent struct {
-	EventId          uuid.UUID `json:"eventId"`
-	EventType        string    `json:"eventType"`
-	NotificationType string    `json:"notificationType"`
+	EventId          uuid.UUID `json:"event_id"`
+	EventType        string    `json:"event_type"`
+	NotificationType string    `json:"notification_type"`
 	Message          string    `json:"message"`
 	Version          string    `json:"version"`
 	Email            string    `json:"email"`

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"minimal-service/internal/config"
-	"minimal-service/internal/model"
+	"auth-service/internal/config"
+	"auth-service/internal/model"
 	"sync"
 
 	amqp "github.com/rabbitmq/amqp091-go"

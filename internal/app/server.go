@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"time"
 
-	"minimal-service/internal/auth"
-	"minimal-service/internal/config"
-	"minimal-service/internal/handler"
-	"minimal-service/internal/messaging"
-	"minimal-service/internal/prometheus"
-	"minimal-service/internal/repository"
+	"auth-service/internal/auth"
+	"auth-service/internal/config"
+	"auth-service/internal/handler"
+	"auth-service/internal/messaging"
+	"auth-service/internal/prometheus"
+	"auth-service/internal/repository"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )

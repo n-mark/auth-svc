@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"minimal-service/internal/model"
+	"auth-service/internal/model"
 )
 
 // ErrNotFound is returned when a user does not exist.
@@ -130,4 +130,22 @@ func isUniqueViolation(err error) bool {
 	}
 	msg := err.Error()
 	return strings.Contains(msg, "duplicate key") || strings.Contains(msg, "23505")
+}
+
+// IsEmailTaken reports whether the email is already used by another user.
+func (r *UserRepository) IsEmailTaken(email string) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(
+		`SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)`, email,
+	).Scan(&exists)
+	return exists, err
+}
+
+// IsPhoneTaken reports whether the phone is already used by another user.
+func (r *UserRepository) IsPhoneTaken(phone string) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(
+		`SELECT EXISTS(SELECT 1 FROM users WHERE phone = $1)`, phone,
+	).Scan(&exists)
+	return exists, err
 }

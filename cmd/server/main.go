@@ -1,8 +1,8 @@
 package main
 
 import (
-	"minimal-service/internal/app"
-	"minimal-service/internal/config"
+	"auth-service/internal/app"
+	"auth-service/internal/config"
 
 	_ "github.com/lib/pq"
 )

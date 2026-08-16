@@ -12,11 +12,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"minimal-service/internal/auth"
-	"minimal-service/internal/messaging"
-	"minimal-service/internal/model"
-	"minimal-service/internal/repository"
-	"minimal-service/pkg/response"
+	"auth-service/internal/auth"
+	"auth-service/internal/messaging"
+	"auth-service/internal/model"
+	"auth-service/internal/repository"
+	"auth-service/pkg/response"
 )
 
 // tokenTTL is how long a freshly issued JWT remains valid.
@@ -63,6 +63,35 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	if dto.Username == "" || dto.Password == "" {
 		response.Error(w, http.StatusBadRequest, "username and password are required")
 		return
+	}
+
+	if dto.Email == "" && dto.Phone == "" {
+		response.Error(w, http.StatusBadRequest, "email or phone is required")
+		return
+	}
+
+	if dto.Email != "" {
+		taken, err := h.repo.IsEmailTaken(dto.Email)
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "failed to check email uniqueness")
+			return
+		}
+		if taken {
+			response.Error(w, http.StatusConflict, "email already taken")
+			return
+		}
+	}
+
+	if dto.Phone != "" {
+		taken, err := h.repo.IsPhoneTaken(dto.Phone)
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "failed to check phone uniqueness")
+			return
+		}
+		if taken {
+			response.Error(w, http.StatusConflict, "phone already taken")
+			return
+		}
 	}
 
 	hash, err := h.passwordHasher.Hash(dto.Password)

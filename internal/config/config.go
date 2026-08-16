@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 )
 
 // DB holds PostgreSQL connection parameters.
@@ -37,6 +38,14 @@ type RabbitConfig struct {
 	DSN          string
 	AuthExchange string
 	ProduceRK    string
+}
+
+// KafkaConfig mirrors RabbitConfig: the `auth` exchange becomes the `auth`
+// topic and the routing key becomes the `eventType` field of the payload.
+type KafkaConfig struct {
+	Brokers              []string
+	AuthTopic            string
+	UserCreatedEventType string
 }
 
 func Load() Config {
@@ -83,4 +92,12 @@ func GetRabbitConfig() RabbitConfig {
 		Host: fmt.Sprintf("%s:%s", host, port)}
 
 	return RabbitConfig{DSN: u.String(), AuthExchange: authExchange, ProduceRK: rk}
+}
+
+func GetKafkaConfig() KafkaConfig {
+	return KafkaConfig{
+		Brokers:              strings.Split(getEnv("KAFKA_BROKERS", "kafka-1:9092,kafka-2:9092,kafka-3:9092"), ","),
+		AuthTopic:            getEnv("KAFKA_AUTH_TOPIC", "auth"),
+		UserCreatedEventType: getEnv("KAFKA_USER_CREATED_EVENT_TYPE", "user.created"),
+	}
 }

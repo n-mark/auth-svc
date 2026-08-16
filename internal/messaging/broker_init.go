@@ -2,8 +2,8 @@ package messaging
 
 import (
 	"fmt"
-	"minimal-service/internal/config"
-	"minimal-service/internal/model"
+	"auth-service/internal/config"
+	"auth-service/internal/model"
 )
 
 type Broker interface {
@@ -12,15 +12,16 @@ type Broker interface {
 }
 
 func InitBroker(cfg config.Config) (Broker, error) {
-	var b Broker
-
-	if "RABBITMQ" == cfg.BrokerType {
+	switch cfg.BrokerType {
+	case "RABBITMQ":
 		br, err := NewRabbitImpl(config.GetRabbitConfig())
 		if err != nil {
 			return nil, fmt.Errorf("can't init rabbitmq impl: %s", err)
 		}
-		b = br
+		return br, nil
+	case "KAFKA":
+		return NewKafkaImpl(config.GetKafkaConfig()), nil
+	default:
+		return nil, fmt.Errorf("unsupported BROKER_TYPE %q (supported: RABBITMQ, KAFKA)", cfg.BrokerType)
 	}
-
-	return b, nil
 }
