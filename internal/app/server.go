@@ -37,12 +37,12 @@ func NewServer(cfg config.Config) http.Handler {
 
 	mux := http.NewServeMux()
 
-	// public endpoints
+	// public endpoints (versioned)
 	mux.HandleFunc("/health", handler.HealthHandler)
-	mux.HandleFunc("/register", userHandler.Register)
-	mux.HandleFunc("/confirm", userHandler.Confirm)
-	mux.HandleFunc("/login", userHandler.Login)
-	mux.HandleFunc("/validate", userHandler.Validate)
+	mux.HandleFunc("/api/v1/register", userHandler.Register)
+	mux.HandleFunc("/api/v1/confirm", userHandler.Confirm)
+	mux.HandleFunc("/api/v1/login", userHandler.Login)
+	mux.HandleFunc("/internal/v1/validate", userHandler.Validate)
 	mux.HandleFunc("/metrics", promhttp.Handler().ServeHTTP)
 
 	return prometheus.MetricsMiddleware(mux)
