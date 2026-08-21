@@ -58,5 +58,6 @@ type UserCreatedEvent struct {
 	Message          string    `json:"message"`
 	Version          string    `json:"version"`
 	Email            string    `json:"email"`
+	UserId           int       `json:"user_id"`
 	Payload          string    `json:"payload"`
 }

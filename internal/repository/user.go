@@ -79,11 +79,11 @@ func (r *UserRepository) GetByConfirmationToken(token string) (*model.User, erro
 	return &u, err
 }
 
-// ConfirmUser activates the account and clears the confirmation token.
+// ConfirmUser activates the account.
 func (r *UserRepository) ConfirmUser(id int) error {
 	res, err := r.db.Exec(
 		`UPDATE users
-		 SET status=$1, confirmation_token=NULL, updated_at=CURRENT_TIMESTAMP
+		 SET status=$1, updated_at=CURRENT_TIMESTAMP
 		 WHERE id=$2 AND status=$3`,
 		model.UserStatusActive, id, model.UserStatusConfirmPending,
 	)

@@ -130,6 +130,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Message:          confirmationLink,
 		Version:          "1.0",
 		Email:            u.Email,
+		UserId:           u.ID,
 		Payload:          "",
 	}
 	if err := h.broker.ReportUserCreated(event); err != nil {
@@ -269,6 +270,34 @@ func (h *UserHandler) Validate(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("X-User-Id", userID)
 	w.WriteHeader(http.StatusOK)
+}
+
+// GetUserInternal handles GET /internal/v1/users/{id}.
+// Returns a lightweight user card (id, username, email, phone) for other services.
+func (h *UserHandler) GetUserInternal(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id <= 0 {
+		response.Error(w, http.StatusBadRequest, "invalid user id")
+		return
+	}
+
+	u, err := h.repo.GetByID(id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			response.Error(w, http.StatusNotFound, "user not found")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "failed to fetch user")
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]any{
+		"id":       u.ID,
+		"username": u.Username,
+		"email":    u.Email,
+		"phone":    u.Phone,
+	})
 }
 
 func userIDFromRequest(r *http.Request) (int, bool) {

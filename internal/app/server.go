@@ -43,6 +43,7 @@ func NewServer(cfg config.Config) http.Handler {
 	mux.HandleFunc("/api/v1/confirm", userHandler.Confirm)
 	mux.HandleFunc("/api/v1/login", userHandler.Login)
 	mux.HandleFunc("/internal/v1/validate", userHandler.Validate)
+	mux.HandleFunc("/internal/v1/users/{id}", userHandler.GetUserInternal)
 	mux.HandleFunc("/metrics", promhttp.Handler().ServeHTTP)
 
 	return prometheus.MetricsMiddleware(mux)
